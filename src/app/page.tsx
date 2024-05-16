@@ -10,8 +10,11 @@ export default async function Home() {
   const session = await getServerAuthSession();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
+    <main className="flex min-h-screen items-center justify-center">
       <Button>hi</Button>
+      <div className="fixed bottom-0 left-0 min-h-8 w-full bg-blue-300">
+        Record
+      </div>
     </main>
   );
 }
