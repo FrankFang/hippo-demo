@@ -35,8 +35,9 @@ const config = {
         "checksVoidReturn": {
           "attributes": false
         }
-      }
-    ]
-  }
+      },
+    ],
+    "import/no-anonymous-default-export": "off",
+  },
 }
-module.exports = config;
+module.exports = config
