@@ -1,14 +1,19 @@
 'use client'
 import { type LiveClient } from "@deepgram/sdk"
-import clsx from "clsx"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { twMerge } from "tailwind-merge"
 import { S } from "~/app/_components/speech-to-text.i18n"
+import { useMainStore } from "~/client/use-main-store"
 import { Button } from "~/components/ui/button"
 import { openDeepgramConnection } from "~/lib/deepgram"
 import { createCatcher } from "~/lib/errors"
 import { api } from "~/trpc/react"
 
-export const SpeechToText = () => {
+type Props = {
+  className?: string
+}
+export const SpeechToText = (props: Props) => {
+  const { className } = props
   const refRecorder = useRef<MediaRecorder | null>(null)
   const refStream = useRef<MediaStream | null>(null)
   const refConnectionToDeepgram = useRef<LiveClient | null>(null)
@@ -22,7 +27,7 @@ export const SpeechToText = () => {
     }))
     refRecorder.current = new MediaRecorder(stream);
     refRecorder.current.ondataavailable = (e) => refConnectionToDeepgram.current?.send(e.data)
-    refRecorder.current.start(250)
+    refRecorder.current.start(300)
   }, [apiKey])
   const stopRecording = useCallback(() => {
     setStatus('idle')
@@ -44,10 +49,23 @@ export const SpeechToText = () => {
       setStatus('idle')
     }
   }
-  return <div className="flex items-center justify-center">
-    <Button onClick={onClick} variant={status === 'recording' ? 'red' : 'green'} >
-      {status === 'recording' ? S.StopRecording : S.StartRecording}
-    </Button>
-    <div className="fixed bottom-0 left-0 min-h-8 w-full bg-blue-300">Record</div>
-  </div>
+  const transcriptList = useMainStore(s => s.transcriptList)
+  const refDiv = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    refDiv.current?.scrollTo(0, refDiv.current.scrollHeight)
+  }, [transcriptList])
+  return (
+    <div className={twMerge("flex flex-col", className)}>
+      <div className="grow shrink h-full flex justify-center items-center">
+        <Button onClick={onClick} variant={status === 'recording' ? 'red' : 'green'} >
+          {status === 'recording' ? S.StopRecording : S.StartRecording}
+        </Button>
+      </div>
+      <div className="p-2 shrink-0 grow-0 bottom-0 left-0 min-h-8 max-h-16 w-full bg-blue-300 overflow-auto text-center" ref={refDiv}>
+        {transcriptList.map((transcript, index) => {
+          return <div key={index}>{transcript}</div>
+        })}
+      </div>
+    </div>
+  )
 }

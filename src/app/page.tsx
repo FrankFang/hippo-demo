@@ -9,8 +9,8 @@ export default async function Home() {
   // const session = await getServerAuthSession();
 
   return (
-    <main className="flex flex-col min-h-screen items-center justify-center">
-      <SpeechToText />
+    <main className="flex flex-col min-h-screen">
+      <SpeechToText className="h-full grow shrink" />
     </main>
   );
 }

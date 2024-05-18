@@ -4,6 +4,7 @@ import { immer } from 'zustand/middleware/immer'
 
 type MainStore = {
   transcriptList: string[]
+  pushTranscript: (transcript: string) => void
 }
 export const useMainStore = create<MainStore>()(
   immer(
