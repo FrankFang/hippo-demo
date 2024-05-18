@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { createClient, LiveTranscriptionEvents } from '@deepgram/sdk'
-import fetch from 'cross-fetch'
-import dotenv from 'dotenv'
-dotenv.config()
+import { createClient, type LiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 
-// URL for the realtime streaming audio you would like to transcribe
-const url = 'http://stream.live.vc.bbcmedia.co.uk/bbc_world_service'
-
-export const live = async () => {
+export const openDeepgramConnection = (apiKey: string) => {
+  let resolve: (value: LiveClient) => void
+  const promise = new Promise<LiveClient>((res, _rej) => {
+    resolve = res;
+  });
   // STEP 1: Create a Deepgram client using the API key
-  const deepgram = createClient(process.env.DEEPGRAM_API_KEY ?? '')
+  const deepgram = createClient(apiKey)
 
   // STEP 2: Create a live transcription connection
   const connection = deepgram.listen.live({
@@ -21,6 +19,8 @@ export const live = async () => {
 
   // STEP 3: Listen for events from the live transcription connection
   connection.on(LiveTranscriptionEvents.Open, () => {
+    console.log('Connection opened.')
+    resolve(connection)
     connection.on(LiveTranscriptionEvents.Close, () => {
       console.log('Connection closed.')
     })
@@ -37,17 +37,17 @@ export const live = async () => {
     connection.on(LiveTranscriptionEvents.Error, (err) => {
       console.error(err)
     })
-
-    // STEP 4: Fetch the audio stream and send it to the live transcription connection
-    void fetch(url)
-      .then((r) => r.body)
-      .then(async (res) => {
-        if (!res) throw new Error('No response body')
-        // read the stream and send it to the connection
-        const reader = res.getReader()
-        const x = await reader.read()
-        x.value && connection.send(x.value.buffer)
-      })
+    connection.on(LiveTranscriptionEvents.SpeechStarted, () => {
+      console.log('Speech started')
+    })
+    connection.on(LiveTranscriptionEvents.UtteranceEnd, () => {
+      console.log('Utterance end')
+    })
+    connection.on(LiveTranscriptionEvents.Warning, (warning) => {
+      console.warn(warning)
+    })
   })
+
+  return promise
 }
 

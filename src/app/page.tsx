@@ -1,7 +1,6 @@
 // import Link from 'next/link';
 
-import { Button } from '~/components/ui/button';
-import { live } from '~/lib/deepgram';
+import { SpeechToText } from '~/app/_components/speech-to-text';
 // import { getServerAuthSession } from '~/server/auth';
 // import { api } from '~/trpc/server';
 
@@ -10,20 +9,12 @@ export default async function Home() {
   // const session = await getServerAuthSession();
 
   return (
-    <main className="flex min-h-screen items-center justify-center">
-      <Button>hi</Button>
-      <div className="fixed bottom-0 left-0 min-h-8 w-full bg-blue-300">Record</div>
+    <main className="flex flex-col min-h-screen items-center justify-center">
+      <SpeechToText />
     </main>
   );
 }
 
-live()
-  .then(() => {
-    console.log('done');
-  })
-  .catch((err) => {
-    console.log(err);
-  });
 
 // async function CrudShowcase() {
 //   const session = await getServerAuthSession();
