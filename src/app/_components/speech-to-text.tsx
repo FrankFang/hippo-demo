@@ -20,13 +20,13 @@ export const SpeechToText = (props: Props) => {
   const refConnectionToDeepgram = useRef<LiveClient | null>(null)
   const [status, setStatus] = useState<'idle' | 'recording' | 'initial'>('initial')
   const apiKey = api.deepgram.api_key.useQuery().data?.api_key
-  const timer = useRef<number | null>(null)
+  const timer = useRef<NodeJS.Timeout | null>(null)
   const wrapper = useRef<HTMLDivElement | null>(null)
   const startRecording = useCallback(async () => {
     if (!apiKey) return
     refConnectionToDeepgram.current = await openDeepgramConnection(apiKey)
-    const stream = refStream.current = await navigator.mediaDevices.getUserMedia({ video: false, audio: true }).catch(createCatcher(() => {
-      window.alert('If you want to use this feature, you need to allow access to your microphone.')
+    const stream = refStream.current = await globalThis.navigator?.mediaDevices.getUserMedia({ video: false, audio: true }).catch(createCatcher(() => {
+      globalThis.alert('If you want to use this feature, you need to allow access to your microphone.')
     }))
     refRecorder.current = new MediaRecorder(stream);
     refRecorder.current.ondataavailable = (e) => refConnectionToDeepgram.current?.send(e.data)
@@ -39,7 +39,7 @@ export const SpeechToText = (props: Props) => {
     if (timer.current) {
       clearInterval(timer.current)
     }
-    timer.current = window.setInterval(() => {
+    timer.current = globalThis.setInterval(() => {
       const byteFrequency = new Uint8Array(analyser.frequencyBinCount)
       analyser.getByteFrequencyData(byteFrequency);
       setByteFrequency(byteFrequency)
