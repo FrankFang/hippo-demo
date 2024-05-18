@@ -14,11 +14,14 @@ type Props = {
 }
 export const SpeechToText = (props: Props) => {
   const { className } = props
+  const { transcriptList, setByteFrequency, setDb, db } = useMainStore()
   const refRecorder = useRef<MediaRecorder | null>(null)
   const refStream = useRef<MediaStream | null>(null)
   const refConnectionToDeepgram = useRef<LiveClient | null>(null)
   const [status, setStatus] = useState<'idle' | 'recording' | 'initial'>('initial')
   const apiKey = api.deepgram.api_key.useQuery().data?.api_key
+  const timer = useRef<number | null>(null)
+  const wrapper = useRef<HTMLDivElement | null>(null)
   const startRecording = useCallback(async () => {
     if (!apiKey) return
     refConnectionToDeepgram.current = await openDeepgramConnection(apiKey)
@@ -28,7 +31,28 @@ export const SpeechToText = (props: Props) => {
     refRecorder.current = new MediaRecorder(stream);
     refRecorder.current.ondataavailable = (e) => refConnectionToDeepgram.current?.send(e.data)
     refRecorder.current.start(300)
-  }, [apiKey])
+    const audioContent = new AudioContext();
+    const audioStream = audioContent.createMediaStreamSource(stream);
+    const analyser = audioContent.createAnalyser();
+    analyser.fftSize = 1024;
+    audioStream.connect(analyser);
+    if (timer.current) {
+      clearInterval(timer.current)
+    }
+    timer.current = window.setInterval(() => {
+      const byteFrequency = new Uint8Array(analyser.frequencyBinCount)
+      analyser.getByteFrequencyData(byteFrequency);
+      setByteFrequency(byteFrequency)
+      let total = 0
+      for (let i = 0; i < 255; i++) {
+        const x = byteFrequency[i] ?? 0
+        total += x * x;
+      }
+      const rms = Math.sqrt(total / analyser.frequencyBinCount);
+      const db = Math.round(Math.max(20 * (Math.log(rms) / Math.log(10)), 0))
+      setDb(db)
+    }, 300)
+  }, [apiKey, setByteFrequency, setDb])
   const stopRecording = useCallback(() => {
     setStatus('idle')
     refStream.current?.getTracks().forEach((track) => track.stop())
@@ -49,19 +73,24 @@ export const SpeechToText = (props: Props) => {
       setStatus('idle')
     }
   }
-  const transcriptList = useMainStore(s => s.transcriptList)
   const refDiv = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     refDiv.current?.scrollTo(0, refDiv.current.scrollHeight)
   }, [transcriptList])
   return (
-    <div className={twMerge("flex flex-col", className)}>
-      <div className="grow shrink h-full flex justify-center items-center">
+    <div className={twMerge("flex flex-col", className)} ref={wrapper}>
+      <div className="grow shrink h-full flex flex-col items-center pt-16">
         <Button onClick={onClick} variant={status === 'recording' ? 'red' : 'green'} >
           {status === 'recording' ? S.StopRecording : S.StartRecording}
         </Button>
+        {status === 'recording' ?
+          <div className="p-4">
+            {db} dB
+          </div>
+          : null
+        }
       </div>
-      <div className="p-2 shrink-0 grow-0 bottom-0 left-0 min-h-8 max-h-16 w-full bg-blue-300 overflow-auto text-center" ref={refDiv}>
+      <div className="p-2 shrink-0 grow-0 bottom-0 left-0 min-h-8 max-h-32 w-full bg-blue-300 overflow-auto text-center" ref={refDiv}>
         {transcriptList.map((transcript, index) => {
           return <div key={index}>{transcript}</div>
         })}
