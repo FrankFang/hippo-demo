@@ -1,8 +1,13 @@
-export const S = {
+import { i18n } from "~/lib/i18n";
+
+export const S = i18n({
   'en-US': {
-    StartRecord: 'Start Record'
+    StartRecording: 'Start Recording',
+    StopRecording: 'Stop Recording',
+
   },
   'zh-CN': {
-    StartRecord: '开始录音'
+    StartRecording: '开始录音',
+    StopRecording: '停止录音',
   }
-}
+})

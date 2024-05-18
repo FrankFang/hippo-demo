@@ -1,5 +1,5 @@
 import type { supportedLocales } from "~/lib/constants"
-import { getLocale } from "~/lib/hooks/get-locale"
+import { getLocale } from "~/lib/get-locale"
 
 interface Nested {
   [key: string]: Nested | string

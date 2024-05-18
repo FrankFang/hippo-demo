@@ -14,9 +14,11 @@
   "cSpell.words": [
     "clsx",
     "DEEPGRAM",
+    "immer",
     "NEXTAUTH",
     "recordrtc",
     "tailwindcss",
-    "TRPC"
+    "TRPC",
+    "zustand"
   ]
 }

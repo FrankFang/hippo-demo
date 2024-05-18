@@ -1,53 +1,63 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { createClient, type LiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
+import { createClient, type LiveClient, LiveTranscriptionEvents, type DeepgramClient } from '@deepgram/sdk';
+import { useCallback, useEffect, useState } from 'react';
 
-export const openDeepgramConnection = (apiKey: string) => {
-  let resolve: (value: LiveClient) => void
-  const promise = new Promise<LiveClient>((res, _rej) => {
-    resolve = res;
-  });
+export const useDeepgram = (apiKey?: string) => {
+  const [client, setClient] = useState<DeepgramClient | null>(null)
   // STEP 1: Create a Deepgram client using the API key
-  const deepgram = createClient(apiKey)
+  useEffect(() => {
+    if (apiKey) {
+      setClient(createClient(apiKey))
+    }
+  }, [apiKey])
 
-  // STEP 2: Create a live transcription connection
-  const connection = deepgram.listen.live({
-    model: 'nova-2',
-    language: 'en-US',
-    smart_format: true,
-  })
+  const [connection, setConnection] = useState<LiveClient | null>(null)
 
-  // STEP 3: Listen for events from the live transcription connection
-  connection.on(LiveTranscriptionEvents.Open, () => {
-    console.log('Connection opened.')
-    resolve(connection)
-    connection.on(LiveTranscriptionEvents.Close, () => {
-      console.log('Connection closed.')
+  const createConnection = useCallback(() => {
+    if (!client) return
+    if (connection) return
+    console.log('Creating connection...')
+    const c = client.listen.live({
+      model: 'nova-2',
+      language: 'en-US',
+      smart_format: true,
     })
-
-    connection.on(LiveTranscriptionEvents.Transcript, (data) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    c.on(LiveTranscriptionEvents.Open, () => {
+      console.log('Connection opened.')
+      setConnection(c)
+      console.log('set connection', c)
+    })
+    c.on(LiveTranscriptionEvents.Close, () => {
+      console.log('closed')
+      console.log(c)
+    })
+    c.on(LiveTranscriptionEvents.Transcript, (data) => {
       console.log(data.channel.alternatives[0].transcript)
     })
-
-    connection.on(LiveTranscriptionEvents.Metadata, (data) => {
+    c.on(LiveTranscriptionEvents.Metadata, (data) => {
       console.log(data)
     })
-
-    connection.on(LiveTranscriptionEvents.Error, (err) => {
+    c.on(LiveTranscriptionEvents.Error, (err) => {
       console.error(err)
     })
-    connection.on(LiveTranscriptionEvents.SpeechStarted, () => {
+    c.on(LiveTranscriptionEvents.SpeechStarted, () => {
       console.log('Speech started')
     })
-    connection.on(LiveTranscriptionEvents.UtteranceEnd, () => {
+    c.on(LiveTranscriptionEvents.UtteranceEnd, () => {
       console.log('Utterance end')
     })
-    connection.on(LiveTranscriptionEvents.Warning, (warning) => {
+    c.on(LiveTranscriptionEvents.Warning, (warning) => {
       console.warn(warning)
     })
-  })
+  }, [client, connection])
+  const destroyConnection = useCallback(() => {
+    console.log('Destroying connection...')
+    if (!connection) return
+    connection.finish()
+    setConnection(null)
+  }, [connection])
 
-  return promise
+  return { connection, createConnection, destroyConnection, client }
 }
 
