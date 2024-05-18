@@ -1,26 +1,34 @@
 'use client'
 import { type LiveClient } from "@deepgram/sdk"
+import clsx from "clsx"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { S } from "~/app/_components/speech-to-text.i18n"
 import { Button } from "~/components/ui/button"
-import { useDeepgram } from "~/lib/deepgram"
+import { openDeepgramConnection } from "~/lib/deepgram"
 import { createCatcher } from "~/lib/errors"
 import { api } from "~/trpc/react"
 
 export const SpeechToText = () => {
-  const [recorder, setRecorder] = useState<MediaRecorder | null>(null)
-  const [stream, setStream] = useState<MediaStream | null>(null)
+  const refRecorder = useRef<MediaRecorder | null>(null)
+  const refStream = useRef<MediaStream | null>(null)
+  const refConnectionToDeepgram = useRef<LiveClient | null>(null)
   const [status, setStatus] = useState<'idle' | 'recording' | 'initial'>('initial')
   const apiKey = api.deepgram.api_key.useQuery().data?.api_key
-  const { connection, createConnection, destroyConnection } = useDeepgram(apiKey)
   const startRecording = useCallback(async () => {
-    const s = await navigator.mediaDevices.getUserMedia({ video: false, audio: true }).catch(createCatcher(() => {
+    if (!apiKey) return
+    refConnectionToDeepgram.current = await openDeepgramConnection(apiKey)
+    const stream = refStream.current = await navigator.mediaDevices.getUserMedia({ video: false, audio: true }).catch(createCatcher(() => {
       window.alert('If you want to use this feature, you need to allow access to your microphone.')
     }))
-    setStream(s)
-  }, [])
+    refRecorder.current = new MediaRecorder(stream);
+    refRecorder.current.ondataavailable = (e) => refConnectionToDeepgram.current?.send(e.data)
+    refRecorder.current.start(250)
+  }, [apiKey])
   const stopRecording = useCallback(() => {
-    setStream(null)
+    setStatus('idle')
+    refStream.current?.getTracks().forEach((track) => track.stop())
+    refRecorder.current?.stop()
+    refConnectionToDeepgram.current?.finish()
   }, [])
   useEffect(() => {
     if (status === 'recording') {
@@ -29,28 +37,6 @@ export const SpeechToText = () => {
       stopRecording()
     }
   }, [status, startRecording, stopRecording])
-  useEffect(() => {
-    if (stream) {
-      setRecorder(new MediaRecorder(stream))
-      createConnection()
-    } else {
-      setRecorder(null)
-      destroyConnection()
-    }
-  }, [createConnection, destroyConnection, stream])
-  useEffect(() => {
-    if (recorder && connection) {
-      recorder.ondataavailable = (e) => {
-        console.log('send')
-        connection.send(e.data)
-      }
-      recorder.start(250)
-    } else if (!connection) {
-      recorder?.stop()
-    } else if (!recorder) {
-      connection.finish()
-    }
-  }, [connection, recorder])
   const onClick = async () => {
     if (['initial', 'idle'].includes(status)) {
       setStatus('recording')

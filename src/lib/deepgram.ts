@@ -1,63 +1,53 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 
-import { createClient, type LiveClient, LiveTranscriptionEvents, type DeepgramClient } from '@deepgram/sdk';
-import { useCallback, useEffect, useState } from 'react';
+import { createClient, type LiveClient, LiveTranscriptionEvents } from '@deepgram/sdk';
 
-export const useDeepgram = (apiKey?: string) => {
-  const [client, setClient] = useState<DeepgramClient | null>(null)
+export const openDeepgramConnection = (apiKey: string) => {
+  let resolve: (value: LiveClient) => void
+  const promise = new Promise<LiveClient>((res, _rej) => {
+    resolve = res;
+  });
   // STEP 1: Create a Deepgram client using the API key
-  useEffect(() => {
-    if (apiKey) {
-      setClient(createClient(apiKey))
-    }
-  }, [apiKey])
+  const deepgram = createClient(apiKey)
 
-  const [connection, setConnection] = useState<LiveClient | null>(null)
+  // STEP 2: Create a live transcription connection
+  const connection = deepgram.listen.live({
+    model: 'nova-2',
+    language: 'en-US',
+    smart_format: true,
+  })
 
-  const createConnection = useCallback(() => {
-    if (!client) return
-    if (connection) return
-    console.log('Creating connection...')
-    const c = client.listen.live({
-      model: 'nova-2',
-      language: 'en-US',
-      smart_format: true,
+  // STEP 3: Listen for events from the live transcription connection
+  connection.on(LiveTranscriptionEvents.Open, () => {
+    console.log('Connection opened.')
+    resolve(connection)
+    connection.on(LiveTranscriptionEvents.Close, () => {
+      console.log('Connection closed.')
     })
-    c.on(LiveTranscriptionEvents.Open, () => {
-      console.log('Connection opened.')
-      setConnection(c)
-      console.log('set connection', c)
-    })
-    c.on(LiveTranscriptionEvents.Close, () => {
-      console.log('closed')
-      console.log(c)
-    })
-    c.on(LiveTranscriptionEvents.Transcript, (data) => {
+
+    connection.on(LiveTranscriptionEvents.Transcript, (data) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       console.log(data.channel.alternatives[0].transcript)
     })
-    c.on(LiveTranscriptionEvents.Metadata, (data) => {
+
+    connection.on(LiveTranscriptionEvents.Metadata, (data) => {
       console.log(data)
     })
-    c.on(LiveTranscriptionEvents.Error, (err) => {
+
+    connection.on(LiveTranscriptionEvents.Error, (err) => {
       console.error(err)
     })
-    c.on(LiveTranscriptionEvents.SpeechStarted, () => {
+    connection.on(LiveTranscriptionEvents.SpeechStarted, () => {
       console.log('Speech started')
     })
-    c.on(LiveTranscriptionEvents.UtteranceEnd, () => {
+    connection.on(LiveTranscriptionEvents.UtteranceEnd, () => {
       console.log('Utterance end')
     })
-    c.on(LiveTranscriptionEvents.Warning, (warning) => {
+    connection.on(LiveTranscriptionEvents.Warning, (warning) => {
       console.warn(warning)
     })
-  }, [client, connection])
-  const destroyConnection = useCallback(() => {
-    console.log('Destroying connection...')
-    if (!connection) return
-    connection.finish()
-    setConnection(null)
-  }, [connection])
+  })
 
-  return { connection, createConnection, destroyConnection, client }
+  return promise
 }
 
