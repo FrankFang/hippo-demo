@@ -26,6 +26,7 @@ export const live = async () => {
     })
 
     connection.on(LiveTranscriptionEvents.Transcript, (data) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       console.log(data.channel.alternatives[0].transcript)
     })
 
@@ -40,10 +41,12 @@ export const live = async () => {
     // STEP 4: Fetch the audio stream and send it to the live transcription connection
     void fetch(url)
       .then((r) => r.body)
-      .then((res) => {
-        res?.on('readable', () => {
-          connection.send(res?.read())
-        })
+      .then(async (res) => {
+        if (!res) throw new Error('No response body')
+        // read the stream and send it to the connection
+        const reader = res.getReader()
+        const x = await reader.read()
+        x.value && connection.send(x.value.buffer)
       })
   })
 }
